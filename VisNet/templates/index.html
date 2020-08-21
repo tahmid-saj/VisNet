@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<head>
+ <title>Network Visualization</title>
+
+    <!--<script type="text/javascript" src="D:/vis-network/examples/network/exampleUtil.js"></script>
+    <script type="text/javascript" src="D:/vis-network/dist/vis-network.min.js"></script>
+    <link href="D:/vis-network/dist/vis-network.min.css" rel="stylesheet" type="text/css" />-->
+
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/examples/network/exampleUtil.js"></script>
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/dist/vis-network.min.js"></script>
+    <link href="https://visjs.github.io/vis-network/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+
+ <style type="text/css">
+    body {
+      font: 10pt sans;
+    }
+    #mynetwork {
+      width: 1300px;
+      height: 1300px;
+      border: 1px solid lightgray;
+    }
+
+    #message {
+      color:darkred;
+      max-width:600px;
+      font-size:16px;
+      cursor:pointer;
+      text-decoration: underline;
+    }
+  </style>
+
+<body onload="draw({{ nodes_py }}, {{ edges_py }}, {{ edges_source_py }}, {{ edges_target_py }}, {{ node_at }}, {{ edge_at }}, {{ rand_node }})">
+
+    <pre id="eventSpan"></pre>
+    <span id="message"></span>
+    <div id="nodeid"></div>
+    <div id="edgeid"></div>
+    <div id="edgeconns"></div>
+    <div id="edgeweights"></div>
+    <div id="edge_mean"></div>
+    <div id="edge_std"></div>
+    <div id="stdscale"></div>
+    <div id="cluster"></div>
+    <div id="vals"></div>
+    <div id="mynetwork"></div>
+
+    <input id="one" name="grp1" type="radio" value="one">Clustering by degrees</input><br>
+    <input id="two" name="grp1" type="radio" value="two">Clustering by node IDs</input><br>
+    <input id="three" name="grp1" type="radio" value="three">Clustering by node accumulated weights</input><br>
+    <input id="four" name="grp1" type="radio" value="four">Clustering by communities - Input the node IDs into the textboxes then select this option</input><br>
+    <input id="five" name="grp1" type="radio" value="five">Clustering by hierarchial</input><br>
+    <input id="six" name="grp1" type="radio" value="six">Clustering most dense community</input><br>
+    <input id="seven" name="grp1" type="radio" value="seven">Clustering by communities from node IDs A to B - Input the range of node IDs then select this option</input><br>
+    <input id="eight" name="grp1" type="radio" value="eight">Clustering by color</input><br>
+
+    <input id="textfrom" placeholder="Enter node IDs from"><br>
+    <input id="textto" placeholder="Enter node IDs to"><br>
+
+    <input id="text1" placeholder="Enter node IDs"><br>
+    <input id="text2" placeholder="Enter node IDs"><br>
+    <input id="text3" placeholder="Enter node IDs"><br>
+    <input id="text4" placeholder="Enter node IDs"><br>
+    <input id="text5" placeholder="Enter node IDs"><br>
+    <input id="text6" placeholder="Enter node IDs"><br>
+    <input id="text7" placeholder="Enter node IDs"><br>
+    <input id="text8" placeholder="Enter node IDs"><br>
+    <input id="text9" placeholder="Enter node IDs"><br>
+    <input id="text10" placeholder="Enter node IDs"><br>
+
+    <input id="text11" placeholder="Enter time stamp A"><br>
+    <input id="text12" placeholder="Enter time stamp B"><br>
+    <input id="text13" placeholder="Enter time stamp C"><br>
+
+    <button onclick="checked({{ nodes_py }})" id="btn1">Click to enable the clustering</button>
+    <button onclick="security({{ nodes_py }}, {{ edges_py }})" id="btn2">Click to find any unusual communication in the network</button>
+
+<script type="text/javascript">
+    var nodes = null;
+    var edges = null;
+    var setSmooth = false;
+    var network = null;
+    var data = null;
+    var time = 0;
+    var rnode = 0;
+    var timep = [];
+    var edgew = [];
+    var largestw = 0;
+    var weightchange = 0;
+    var stddev = [];
+    var stdnumb = 0;
+    var stdnuma = 0;
+    var nodes_con = [];
+    var nodes_w = [];
+    var tedges = 0;
+    var edges_con = [];
+    var all_edges = "";
+    var edge_id = [];
+    var nodes_com = [];
+    var clus_five = false;
+    var mdense_node = 0;
+    //var edge_mean = '{{ edge_mean }}';
+    //var edge_std = '{{ edge_std }}';
+    var edge_risk = '{{ edge_risk }}';
+    window.addEventListener("load",function() { changeBackground('LightSkyBlue') });
+
+    timep[0] = 0;
+    edgew[0] = 0;
+
+    function changeBackground(color) {
+        document.body.style.background = color;
+    }
+
+    function draw (node, edge, edges_s, edges_t, nodeAt, edgeAt, randnode) {
+      nodes = [];
+      edges = [];
+
+      if (node.length > 100) {
+        document.getElementById("message").innerHTML = '<a onclick="disableSmoothCurves()">You may want to disable dynamic smooth curves for better performance with a large amount of nodes and edges. Click here to disable them.</a>';
+      }
+      else if (setSmooth === false) {
+        document.getElementById("message").innerHTML = '';
+      }
+
+      // create an array with nodes/edges
+        for (let i = 0; i < node.length; i++)  {
+            nodes[i] = {id: i, label: node[i].toString()};
+        }
+
+      //for (let c = 0; c < node.length; c++)  {
+      //  edgew[c] = c;
+      //  edges.push({from: c, to: (c+1), id: (c + "_" + (c+1)), label: edgew[c].toString()});
+      //  nodes_con[c] = 1;
+      //  nodes_w[c] = c;
+      //  tedges++;
+
+      //  if ((c % 2) == 0)   {
+      //      edges.push({from: c, to: (c+2), id: (c + "_" + (c+2)), label: edgew[c].toString()});
+      //      nodes_con[c] = 2;
+      //      nodes_w[c] = nodes_w[c] + c;
+      //      tedges++;
+      //  }
+      //}
+
+      for (let c = 0; c < edge.length; c++)     {
+        for (let e = 0; e < node.length; e++)   {
+            if (edges_s[c] == node[e])  {
+                edgew[e] = c;
+                edges[c] = {from: e, id: c, label: c.toString()};
+                //nodes_w[e] = c;
+                tedges++;
+            }
+        }
+
+        for (let f = 0; f < node.length; f++)   {
+            if (edges_t[c] == node[f] && edges[c] != null)  {
+                edges[c].to = f;
+            }
+        }
+      }
+
+    rnode = node[randnode];
+    document.getElementById("nodeid").innerHTML = "The random node: " + rnode;
+
+ // create a network
+ var container = document.getElementById('mynetwork');
+ data = {
+    nodes: nodes,
+    edges: edges
+  };
+ var options = {
+    physics: { stabilization: false }
+ };
+
+ network = new vis.Network(container, data, options);
+
+ network.on("click", function (params) {
+        all_edges = "";
+        params.event = "[original event]";
+        document.getElementById("nodeid").innerHTML = "The node clicked: " + this.getNodeAt(params.pointer.DOM);
+        document.getElementById("edgeid").innerHTML = "The edge clicked: " + this.getEdgeAt(params.pointer.DOM);
+        nodeAt = this.getNodeAt(params.pointer.DOM);
+        edgeAt = this.getEdgeAt(params.pointer.DOM);
+
+        cluster_five(nodeAt);
+
+        for (c = 0; c < edges.length; c++)  {
+            if (edges[c].from == nodeAt || edges[c].to == nodeAt) {
+                all_edges += "{     " + edges[c].id + "     }";
+            }
+        }
+
+        // document.getElementById("edgeconns").innerHTML = "The edges connected: " + all_edges;
+
+         // GET is the default method, so we don't need to set it
+    fetch('/')
+        .then(function (response) {
+            return response.text();
+        }).then(function (text) {
+            // Print the greeting as text
+            console.log('GET response text:');
+            console.log(text);
+        });
+    // Send the same request
+    fetch('/')
+        .then(function (response) {
+            // But parse it as JSON this time
+            return response.json();
+        })
+        .then(function (json) {
+            // Do anything with it!
+            console.log('GET response as JSON:');
+            console.log(json);
+        })
+    // POST
+    fetch('/', {
+        // Specify the method
+        method: 'POST1',
+        // JSON
+        headers: {
+        'Content-Type': 'application/json'
+        },
+        // A JSON payload
+        body: JSON.stringify({
+            "Node Clicked and edge clicked, with all edges connected: ": nodeAt + "   " + edgeAt + "      " + all_edges
+        })
+    }).then(function (response) {
+        return response.text();
+    }).then(function (text) {
+        console.log('POST1 response: ');
+        // Should be 'OK' if everything was successful
+        console.log(text);
+    });
+    });
+ }
+
+    function checked(node)  {
+        var one = document.getElementById("one");
+        var two = document.getElementById("two");
+        var three = document.getElementById("three");
+        var four = document.getElementById("four");
+        var five = document.getElementById("five");
+        var six = document.getElementById("six");
+
+        if (one.checked==true)  {
+            document.getElementById("cluster").innerHTML = "Cluster one - Clustering by degrees";
+
+            for (let i = 0; i < nodes.length; i++)  {
+                nodes_con[i] = 0;
+                for (let c = 0; c < edges.length; c++)  {
+                    if (nodes[i].id == edges[c].from || nodes[i].id == edges[c].to)   {
+                        nodes_con[i]++;
+                    }
+                }
+            }
+
+            for (let i = 0; i < nodes.length; i++)  {
+              if (nodes_con[i] == 0) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'teal'};
+              } else if (nodes_con[i] == 1){
+                nodes[i] = {id: i, label: node[i].toString(), color:'crimson'};
+              } else if (nodes_con[i] == 2){
+                nodes[i] = {id: i, label: node[i].toString(), color:'grey'};
+              } else if (nodes_con[i] == 3){
+                nodes[i] = {id: i, label: node[i].toString(), color:'purple'};
+              } else if (nodes_con[i] == 4){
+                nodes[i] = {id: i, label: node[i].toString(), color:'blue'};
+              } else {
+                nodes[i] = {id: i, label: node[i].toString(), color:'black'};
+              }
+            }
+
+            var container = document.getElementById('mynetwork');
+            data = {
+                nodes: nodes,
+                edges: edges
+            };
+            var options = {
+                physics: { stabilization: false }
+            };
+
+            network = new vis.Network(container, data, options);
+        }   else if (two.checked==true) {
+            document.getElementById("cluster").innerHTML = "Cluster two - Clustering by node IDs";
+
+            for (let i = 0; i < nodes.length; i++)  {
+              if (nodes[i].id >= 0 && nodes[i].id <= 60) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'teal'};
+              } else if (nodes[i].id >= 61 && nodes[i].id <= 120) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'crimson'};
+              } else if (nodes[i].id >= 121 && nodes[i].id <= 180) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'grey'};
+              } else if (nodes[i].id >= 181 && nodes[i].id <= 240) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'blue'};
+              } else    {
+                nodes[i] = {id: i, label: node[i].toString(), color:'black'};
+              }
+            }
+
+            var container = document.getElementById('mynetwork');
+            data = {
+                nodes: nodes,
+                edges: edges
+            };
+            var options = {
+                physics: { stabilization: false }
+            };
+
+            network = new vis.Network(container, data, options);
+        }   else if (three.checked==true) {
+            document.getElementById("cluster").innerHTML = "Cluster three - Clustering by node accumulated weights";
+
+            for (let i = 0; i < nodes.length; i++)  {
+                nodes_w[i] = 0;
+                for (let c = 0; c < edges.length; c++)  {
+                    if (nodes[i].id == edges[c].from || nodes[i].id == edges[c].to)   {
+                        nodes_w[i] += c / 100;
+                    }
+                }
+            }
+
+            for (let i = 0; i < nodes.length; i++)  {
+              if (nodes_w[i] >= 0 && nodes_w[i] <= 0.02) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'teal'};
+              } else if (nodes_w[i] >= 0.021 && nodes_w[i] <= 0.04) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'crimson'};
+              } else if (nodes_w[i] >= 0.041 && nodes_w[i] <= 0.06) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'grey'};
+              } else if (nodes_w[i] >= 0.061 && nodes_w[i] <= 0.08) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'blue'};
+              } else if (nodes_w[i] >= 0.081 && nodes_w[i] <= 0.100) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'yellow'};
+              } else if (nodes_w[i] >= 0.101 && nodes_w[i] <= 0.120) {
+                nodes[i] = {id: i, label: node[i].toString(), color:'violet'};
+              } else if (nodes_w[i] >= 0.121 && nodes_w[i] <= 0.140)  {
+                nodes[i] = {id: i, label: node[i].toString(), color:'cyan'};
+              } else if (nodes_w[i] >= 0.141 && nodes_w[i] <= 0.160)  {
+                nodes[i] = {id: i, label: node[i].toString(), color:'orange'};
+              } else if (nodes_w[i] >= 0.161 && nodes_w[i] <= 0.180)  {
+                nodes[i] = {id: i, label: node[i].toString(), color:'khaki'};
+              } else if (nodes_w[i] >= 0.181 && nodes_w[i] <= 0.200)  {
+                nodes[i] = {id: i, label: node[i].toString(), color:'brown'};
+              } else if (nodes_w[i] >= 0.201 && nodes_w[i] <= 0.220)  {
+                nodes[i] = {id: i, label: node[i].toString(), color:'navy'};
+              } else if (nodes_w[i] >= 0.221 && nodes_w[i] <= 0.240)  {
+                nodes[i] = {id: i, label: node[i].toString(), color:'lime'};
+              } else {
+                nodes[i] = {id: i, label: node[i].toString(), color:'black'};
+              }
+            }
+
+            var container = document.getElementById('mynetwork');
+            data = {
+                nodes: nodes,
+                edges: edges
+            };
+            var options = {
+                physics: { stabilization: false }
+            };
+
+            network = new vis.Network(container, data, options);
+        }   else if (four.checked==true) {
+            document.getElementById("cluster").innerHTML = "Cluster four - Clustering by communities - Input the node IDs into the textboxes then select this option";
+            values(node);
+
+            //for (let i = 0; i < nodes.length; i++)  {
+            //    for (let c = 0; c < edges.length; c++)  {
+            //        if (nodes[i].id == edges[c].from || nodes[i].id == edges[c].to)   {
+            //            nodes[i].cid = i;
+            //           if (nodes[edges[c].to] =! null) {
+            //                nodes[edges[c].to].cid = i;
+            //           }
+            //            nodes_com[i]++;
+            //        }
+            //    }
+            //}
+
+            //for (let i = 0; i < nodes.length; i++)  {
+            //    nodes_com[i] = 0;
+            //    for (let c = 0; c < edges.length; c++)  {
+            //        if (nodes[i].id == edges[c].from || nodes[i].id == edges[c].to)    {
+            //           nodes_com[i]++;
+            //        }
+            //    }
+            //}
+
+
+            //for (let i = 0; i < nodes.length; i++)  {
+            // if (nodes_com[i] == 0) {
+            //    nodes[i] = {id: i, label: node[i].toString(), color:'teal'};
+            //  } else {
+            //    nodes[i] = {id: i, label: node[i].toString(), color:'black'};
+            //  }
+            //}
+
+            var container = document.getElementById('mynetwork');
+            data = {
+                nodes: nodes,
+                edges: edges
+            };
+            var options = {
+                physics: { stabilization: false }
+            };
+
+            network = new vis.Network(container, data, options);
+        }   else if (five.checked==true)  {
+               document.getElementById("cluster").innerHTML = "Cluster five - Clustering by hierarchial";
+
+                clus_five = true;
+
+                //if (edges[1].id == (0 + "_" + 2))   {
+                //    nodes[rnode] = {id: rnode, label: node[rnode].toString(), color:'red'};
+                //}
+
+
+
+                   //for (let c = 0; c < edges.length; c++)  {
+                     //for (let e = 0; e < nodes.length; e++)   {
+                       //if (edges[c] == {from: rnode, to: e})    {
+                         //nodes[e] = {id: e, label: e.toString(), color:'orange'};
+                       //}
+                     //}
+                   //}
+
+                //var container = document.getElementById('mynetwork');
+                //data = {
+                //nodes: nodes,
+                //edges: edges
+                //};
+                //var options = {
+                //physics: { stabilization: false }
+                //};
+
+                //network = new vis.Network(container, data, options);
+        }   else if (six.checked==true)  {
+                document.getElementById("cluster").innerHTML = "Cluster six - Clustering most dense community";
+
+                for (let i = 0; i < nodes.length; i++)  {
+                    nodes_con[i] = 0;
+                    for (let c = 0; c < edges.length; c++)  {
+                        if (nodes[i].id == edges[c].from || nodes[i].id == edges[c].to)   {
+                            nodes_con[i]++;
+                        }
+                    }
+                }
+
+                mdense_node = Math.max(...nodes_con);
+
+                for (i = 0; i < nodes.length; i++)  {
+                    if (nodes_con[i] == mdense_node)    {
+                        clus_five = true;
+                        cluster_five(i);
+                    }   else    {
+                        nodes[i].color = "black";
+                    }
+                }
+
+                var container = document.getElementById('mynetwork');
+                data = {
+                nodes: nodes,
+                edges: edges
+                };
+                var options = {
+                physics: { stabilization: false }
+                };
+
+                network = new vis.Network(container, data, options);
+        }   else if (seven.checked==true)  {
+                document.getElementById("cluster").innerHTML = "Cluster seven - Clustering by communities from node IDs A to B - Input the range of node IDs then select this option";
+                values2(node);
+
+                var container = document.getElementById('mynetwork');
+                data = {
+                nodes: nodes,
+                edges: edges
+                };
+                var options = {
+                physics: { stabilization: false }
+                };
+
+                network = new vis.Network(container, data, options);
+        }   else if (eight.checked==true) {
+            network.setData(data);
+            var colors = ['teal', 'crimson', 'grey', 'blue', 'yellow', 'violet', 'cyan', 'orange', 'khaki', 'brown', 'navy', 'lime', 'black'];
+            var clusterOptionsByData;
+            for (var i = 0; i < colors.length; i++) {
+                var color = colors[i];
+                clusterOptionsByData = {
+                    joinCondition: function (childOptions)  {
+                        return childOptions.color.background == color;
+                    },
+                    processProperties: function (clusterOptions, childNodes, childEdges)    {
+                        var totalMass = 0;
+                        for (var i = 0; i < childNodes.length; i++) {
+                            totalMass += childNodes[i].mass;
+                        }
+                        clusterOptions.mass = totalMass;
+                        return clusterOptions;
+                    },
+                    clusterNodeProperties: {id: 'cluster:' + color, borderWidth: 50, shape: 'database', color:color, label:'color:' + color}
+                };
+                network.cluster(clusterOptionsByData);
+            }
+        }
+    }
+
+    if (network != null)    {
+        //network.on("selectNode", function(params) {
+        //if (params.nodes.length == 1) {
+          //if (network.isCluster(params.nodes[0]) == true) {
+          //    network.openCluster(params.nodes[0]);
+          //}
+        //}
+        //});
+
+        network.on('click', function (params) {
+            if (params.nodes.length == 1) {
+                if (network.isCluster(params.nodes[0]) == true) {
+                    network.openCluster(params.nodes[0]);
+                }
+            }
+        });
+    }
+
+    function cluster_five(nodeAt)   {
+        if (clus_five == true)  {
+            nodes[nodeAt].color = "red";
+
+            for (c = 0; c < edges.length; c++)  {
+                if (edges[c].from == nodeAt && nodes[edges[c].to] != null)    {
+                    nodes[edges[c].to].color = "blue";
+
+                    for (d = 0; d < edges.length; d++)  {
+                        if (edges[d].from == nodes[edges[c].to].id && edges[d].to != nodeAt && nodes[edges[d].to] != null)    {
+                            nodes[edges[d].to].color = "orange";
+
+                            //for (e = 0; e < edges.length; e++)  {
+                             //   if (edges[e].from == nodes[edges[d].to].id && edges[e].to != nodes[edges[c].to].id && edges[e].to != nodes[edges[c].from].id)    {
+                               //     nodes[edges[e].to].color = "green";
+                                //} else if (edges[e].to == nodes[edges[d].to].id && edges[e].from != nodes[edges[c].to].id && edges[e].from != nodes[edges[c].from].id)   {
+                                  //  nodes[edges[e].from].color = "green";
+                                //}
+                            //}
+                        } else if (edges[d].to == nodes[edges[c].to].id && edges[d].from != nodeAt && nodes[edges[d].from] != null)   {
+                            nodes[edges[d].from].color = "orange";
+
+                            //for (e = 0; e < edges.length; e++)  {
+                              //  if (edges[e].from == nodes[edges[d].from].id && edges[e].to != nodes[edges[c].to].id && edges[e].to != nodes[edges[c].from].id)    {
+                                //    nodes[edges[e].to].color = "green";
+                                //} else if (edges[e].to == nodes[edges[d].from].id && edges[e].from != nodes[edges[c].to].id && edges[e].from != nodes[edges[c].from].id)   {
+                                 //   nodes[edges[e].from].color = "green";
+                                //}
+                            //}
+                        }
+                    }
+                } else if (edges[c].to == nodeAt && nodes[edges[c].to] != null)   {
+                    nodes[edges[c].from].color = "blue";
+
+                    for (d = 0; d < edges.length; d++)  {
+                        if (edges[d].from == nodes[edges[c].from].id && edges[d].to != nodeAt && nodes[edges[d].to] != null)    {
+                            nodes[edges[d].to].color = "orange";
+
+                            //for (e = 0; e < edges.length; e++)  {
+                              //  if (edges[e].from == nodes[edges[d].to].id && edges[e].to != nodes[edges[c].to].id && edges[e].to != nodes[edges[c].from].id)    {
+                               //     nodes[edges[e].to].color = "green";
+                               // } else if (edges[e].to == nodes[edges[d].to].id && edges[e].from != nodes[edges[c].to].id && edges[e].to != nodes[edges[c].from].id)   {
+                               //     nodes[edges[e].from].color = "green";
+                                //}
+                            //}
+                        } else if (edges[d].to == nodes[edges[c].from].id && edges[d].from != nodeAt && nodes[edges[c].from] != null)   {
+                            nodes[edges[d].from].color = "orange";
+
+                            //for (e = 0; e < edges.length; e++)  {
+                              //  if (edges[e].from == nodes[edges[d].from].id && edges[e].to != nodes[edges[c].to].id && edges[e].to != nodes[edges[c].from].id)    {
+                                //    nodes[edges[e].to].color = "green";
+                                //} else if (edges[e].to == nodes[edges[d].from].id && edges[e].from != nodes[edges[c].to].id && edges[e].to != nodes[edges[c].from].id)   {
+                                  //  nodes[edges[e].from].color = "green";
+                                //}
+                            //}
+                        }
+                    }
+                }
+            }
+
+
+            var container = document.getElementById('mynetwork');
+            data = {
+            nodes: nodes,
+            edges: edges
+            };
+            var options = {
+            physics: { stabilization: false }
+            };
+
+            network = new vis.Network(container, data, options);
+        }
+        clus_five = false;
+    }
+
+    function values(node)   {
+        var val1 = document.getElementById("text1").value;
+        var val2 = document.getElementById("text2").value;
+        var val3 = document.getElementById("text3").value;
+        var val4 = document.getElementById("text4").value;
+        var val5 = document.getElementById("text5").value;
+        var val6 = document.getElementById("text6").value;
+        var val7 = document.getElementById("text7").value;
+        var val8 = document.getElementById("text8").value;
+        var val9 = document.getElementById("text9").value;
+        var val10 = document.getElementById("text10").value;
+
+        clus_five = true;
+        cluster_five(val1);
+        clus_five = true;
+        cluster_five(val2);
+        clus_five = true;
+        cluster_five(val3);
+        clus_five = true;
+        cluster_five(val4);
+        clus_five = true;
+        cluster_five(val5);
+        clus_five = true;
+        cluster_five(val6);
+        clus_five = true;
+        cluster_five(val7);
+        clus_five = true;
+        cluster_five(val8);
+        clus_five = true;
+        cluster_five(val9);
+        clus_five = true;
+        cluster_five(val10);
+    }
+
+    function values2(node)  {
+        var valA = document.getElementById("textfrom").value;
+        var valB = document.getElementById("textto").value;
+
+        for (i = valA; i < valB; i++)   {
+            clus_five = true;
+            cluster_five(i);
+        }
+    }
+
+    function security(node, edge)  {
+        var val11 = document.getElementById("text11").value;
+        var val12 = document.getElementById("text12").value;
+        var val13 = document.getElementById("text13").value;
+
+        // POST
+        fetch('/', {
+            // Specify the method
+            method: 'POST2',
+            // JSON
+            headers: {
+            'Content-Type': 'application/json'
+            },
+            // A JSON payload
+            body: JSON.stringify({
+                val11, val12, val13
+            })
+        }).then(function (response) {
+            return response.text();
+        }).then(function (text) {
+            console.log('POST2 response: ');
+            // Should be 'OK' if everything was successful
+            console.log(text);
+        });
+
+        unusual_comm('{{ edge_risk }}', node, edge);
+
+        // POST
+        fetch('/', {
+            // Specify the method
+            method: 'POST3',
+            // JSON
+            headers: {
+            'Content-Type': 'application/json'
+            },
+            // A JSON payload
+            body: JSON.stringify({
+                time
+            })
+        }).then(function (response) {
+            return response.text();
+        }).then(function (text) {
+            console.log('POST3 response: ');
+            // Should be 'OK' if everything was successful
+            console.log(text);
+        });
+    }
+
+    function unusual_comm(edge_risk, node, edge) {
+        document.getElementById("edge_mean").innerHTML = "Edge at most risk and level: " + edge_risk;
+
+        //for (let k = 0; k < edge.length; k++)   {
+        //    if (edge_mean[k] >= 0 && edge_mean[k] < 10) {
+        //        nodes[k] = {id: k, label: node[k].toString(), color:'green'};
+        //    } else if (edge_mean[k] >= 10 && edge_mean[k] < 20)  {
+        //        nodes[k] = {id: k, label: node[k].toString(), color:'yellow'};
+        //    } else if (edge_mean[k] >= 20 && edge_mean[k] < 30)  {
+        //        nodes[k] = {id: k, label: node[k].toString(), color:'red'};
+        //    } else if (edge_mean[k] >= 30 && edge_mean[k] < 40)  {
+        //        nodes[k] = {id: k, label: node[k].toString(), color:'red'};
+        //    } else if (edge_mean[k] >= 40 && edge_mean[k] < 50)  {
+        //        nodes[k] = {id: k, label: node[k].toString(), color:'red'};
+        //    } else {
+        //        nodes[k] = {id: k, label: node[k].toString(), color:'black'};
+        //    }
+        //}
+    }
+
+    setInterval('incrementTime()', 1000);
+
+    function incrementTime()  {
+        time += 1;
+        document.getElementById("eventSpan").innerHTML = "Time: " + time + " s";
+
+        if ((time % 5) == 0)    {
+        changeBackground('LightGreen');
+
+        }   else {
+            changeBackground('LightSkyBlue');
+        }
+
+        // POST
+        fetch('/', {
+            // Specify the method
+            method: 'POST0',
+            // JSON
+            headers: {
+            'Content-Type': 'application/json'
+            },
+            // A JSON payload
+            body: JSON.stringify({
+                time
+            })
+        }).then(function (response) {
+            return response.text();
+        }).then(function (text) {
+            console.log('POST0 response: ');
+            // Should be 'OK' if everything was successful
+            console.log(text);
+        });
+
+        //if (time % 5 == 0)  {
+        //    nodes = null;
+        //    edges = null;
+        //    network = null;
+        //    draw('{{ nodes_py }}', '{{ edges_py }}', '{{ edges_source_py }}', '{{ edges_target_py }}', '{{ node_at }}', '{{ edge_at }}', '{{ rand_node }}');
+        //}
+    }
+
+    function disableSmoothCurves() {
+      setSmooth = true;
+      network.setOptions({edges:{smooth:{type:'continuous'}}});
+      document.getElementById("message").innerHTML = '<a onclick="enableSmoothCurves()">Click here to reenable the dynamic smooth curves.</a>';
+    }
+
+    function enableSmoothCurves() {
+      setSmooth = false;
+      document.getElementById("message").innerHTML = '<a onclick="disableSmoothCurves()">You may want to disable dynamic smooth curves for better performance with a large amount of nodes and edges. Click here to disable them.</a>';
+      network.setOptions({edges:{smooth:{type:'dynamic'}}});
+    }
+</script>
+</head>
+
+<p>
+ Name: Tahmid Sajin     Project: Network Data Visualization
+</p>
+
+</body>
+</html>

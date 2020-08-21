@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Random Network</title>
+
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/examples/network/exampleUtil.js"></script>
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/dist/vis-network.min.js"></script>
+    <link href="https://visjs.github.io/vis-network/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+
+    <style type="text/css">
+    body {
+      font: 10pt sans;
+    }
+    #mynetwork {
+      width: 1400px;
+      height: 1400px;
+      border: 1px solid lightgray;
+    }
+    p {
+        max-width:600px;
+    }
+
+    h4 {
+        margin-bottom:3px;
+    }
+    #message {
+      color:darkred;
+      max-width:600px;
+      font-size:16px;
+      cursor:pointer;
+      text-decoration: underline;
+    }
+  </style>
+
+</head>
+
+<body onload="draw({{ randnet_nodes }}, {{ randnet_edges }}, {{ randnet_nodea }}, {{ randnet_nodeb }}, {{ randnet_node_a }})">
+
+<input type="button" onclick="clusterByColor()" value="Cluster by color"> <br />
+<span id="message"></span>
+<div id="mynetwork"></div>
+<div id="vals"></div>
+
+    <script type="text/javascript">
+    var setSmooth = false;
+    var nodes = null;
+    var edges = null;
+    var data = null;
+    var network = null;
+    var nodeCount = 0;
+
+    function destroy() {
+      if (network !== null) {
+        network.destroy();
+        network = null;
+      }
+    }
+
+    function draw(randnet_nodes, randnet_edges, randnet_nodea, randnet_nodeb, randnet_node_a) {
+      destroy();
+      nodeCount = randnet_nodes.length;
+      if (nodeCount > 100) {
+        document.getElementById("message").innerHTML = '<a onclick="disableSmoothCurves()">You may want to disable dynamic smooth curves for better performance with a large amount of nodes and edges. Click here to disable them.</a>';
+      }
+      else if (setSmooth === false) {
+        document.getElementById("message").innerHTML = '';
+      }
+
+      nodes = [];
+      edges = [];
+
+      for (let i = 0; i < randnet_nodes.length; i++)  {
+        nodes[i] = {id: i, label: randnet_nodes[i].toString()};
+            if (randnet_node_a[i] == 1)  {
+                nodes[i].color = 'red';
+            }   else if (randnet_node_a[i] == 2)  {
+                nodes[i].color = 'blue';
+            }   else if (randnet_node_a[i] == 3)  {
+                nodes[i].color = 'green';
+            }   else if (randnet_node_a[i] == 4)  {
+                nodes[i].color = 'crimson';
+            }   else if (randnet_node_a[i] == 5)  {
+                nodes[i].color = 'lime';
+            }   else if (randnet_node_a[i] == 6)  {
+                nodes[i].color = 'violet';
+            }   else if (randnet_node_a[i] == 7)  {
+                nodes[i].color = 'teal';
+            }   else if (randnet_node_a[i] == 8)  {
+                nodes[i].color = 'yellow';
+            }   else if (randnet_node_a[i] == 9)  {
+                nodes[i].color = 'orange';
+            }   else if (randnet_node_a[i] == 10)  {
+                nodes[i].color = 'LightSkyBlue';
+            }   else if (randnet_node_a[i] == 11)  {
+                nodes[i].color = 'LightRed';
+            }   else if (randnet_node_a[i] == 12)  {
+                nodes[i].color = 'black';
+            }   else if (randnet_node_a[i] == 13)  {
+                nodes[i].color = 'grey';
+            }   else if (randnet_node_a[i] == 14)  {
+                nodes[i].color = 'pink';
+            }   else if (randnet_node_a[i] == 15)  {
+                nodes[i].color = 'LightGreen';
+            }   else if (randnet_node_a[i] == 16)  {
+                nodes[i].color = 'jade';
+            }   else if (randnet_node_a[i] == 17)  {
+                nodes[i].color = 'khaki';
+            }   else if (randnet_node_a[i] == 18)  {
+                nodes[i].color = 'brown';
+            }   else if (randnet_node_a[i] == 19)  {
+                nodes[i].color = 'silver';
+            }   else if (randnet_node_a[i] == 20)  {
+                nodes[i].color = 'LightBlue';
+            }
+      }
+
+      for (let i = 0; i < randnet_nodea.length; i++)  {
+        edges[i] = {from: randnet_nodea[i], id: i, label: randnet_edges[i].toString()};
+      }
+
+      for (let i = 0; i < randnet_nodeb.length; i++)  {
+        edges[i].to = randnet_nodeb[i];
+      }
+
+      // create a network
+      var container = document.getElementById('mynetwork');
+      data = {
+        nodes: nodes,
+        edges: edges
+      };
+      var options = {
+        layout: {randomSeed:8},
+        physics: { stabilization: false }
+      };
+      network = new vis.Network(container, data, options);
+
+      network.on('click', function (params) {
+
+            if (params.nodes.length >= 0) {
+                if (network.isCluster(params.nodes[0]) == true) {
+                    network.openCluster(params.nodes[0]);
+                }
+            }
+      });
+    }
+
+    function clusterByColor() {
+        network.setData(data);
+        var colors = ['red', 'blue', 'green', 'crimson', 'lime', 'violet', 'teal', 'yellow', 'orange', 'LightSkyBlue', 'LightRed', 'black', 'grey', 'pink', 'LightGreen', 'jade', 'khaki', 'brown', 'silver', 'LightBlue'];
+        var clusterOptionsByData;
+        for (var i = 0; i < colors.length; i++) {
+            var color = colors[i];
+            clusterOptionsByData = {
+                joinCondition: function (childOptions)  {
+                    return childOptions.color.background == color;
+                },
+                processProperties: function (clusterOptions, childNodes, childEdges)    {
+                    var totalMass = 0;
+                    for (var i = 0; i < childNodes.length; i++) {
+                        totalMass += childNodes[i].mass;
+                    }
+                    clusterOptions.mass = totalMass;
+                    return clusterOptions;
+                },
+                clusterNodeProperties: {id: 'cluster:' + color, borderWidth: 50, shape: 'database', color:color, label:'color:' + color}
+            };
+            network.cluster(clusterOptionsByData);
+        }
+    }
+
+    //if (network != null)    {
+        //network.on("selectNode", function(params) {
+        //if (params.nodes.length == 1) {
+          //if (network.isCluster(params.nodes[0]) == true) {
+          //    network.openCluster(params.nodes[0]);
+          //}
+        //}
+        //});
+
+        document.getElementById("vals").innerHTML = "It worked";
+
+
+    //}
+
+    function disableSmoothCurves() {
+      setSmooth = true;
+      network.setOptions({edges:{smooth:{type:'continuous'}}});
+      document.getElementById("message").innerHTML = '<a onclick="enableSmoothCurves()">Click here to reenable the dynamic smooth curves.</a>';
+    }
+
+    function enableSmoothCurves() {
+      setSmooth = false;
+      document.getElementById("message").innerHTML = '<a onclick="disableSmoothCurves()">You may want to disable dynamic smooth curves for better performance with a large amount of nodes and edges. Click here to disable them.</a>';
+      network.setOptions({edges:{smooth:{type:'dynamic'}}});
+    }
+</script>
+
+</body>
+</html>
+

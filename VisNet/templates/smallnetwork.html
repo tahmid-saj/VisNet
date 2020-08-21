@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Small Network</title>
+
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/examples/network/exampleUtil.js"></script>
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/dist/vis-network.min.js"></script>
+    <link href="https://visjs.github.io/vis-network/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+
+    <style type="text/css">
+    body {
+      font: 10pt sans;
+    }
+    #mynetwork {
+      width: 1300px;
+      height: 1300px;
+      border: 1px solid lightgray;
+    }
+
+    #message {
+      color:darkred;
+      max-width:600px;
+      font-size:16px;
+      cursor:pointer;
+      text-decoration: underline;
+    }
+  </style>
+
+    <script type="text/javascript">
+    var nodes = null;
+    var edges = null;
+    var network = null;
+    var setSmooth = false;
+
+    function destroy() {
+      if (network !== null) {
+        network.destroy();
+        network = null;
+      }
+    }
+
+    function draw(smallnet_nodes, smallnet_edges, smallnet_nodea, smallnet_nodeb) {
+      destroy();
+      var nodeCount = smallnet_nodes.length;
+      if (nodeCount > 100) {
+        document.getElementById("message").innerHTML = '<a onclick="disableSmoothCurves()">You may want to disable dynamic smooth curves for better performance with a large amount of nodes and edges. Click here to disable them.</a>';
+      }
+      else if (setSmooth === false) {
+        document.getElementById("message").innerHTML = '';
+      }
+
+      nodes = [];
+      edges = [];
+
+      for (let i = 0; i < smallnet_nodes.length; i++)  {
+        nodes[i] = {id: i, label: smallnet_nodes[i].toString()};
+      }
+
+      for (let i = 0; i < smallnet_nodea.length; i++)  {
+        edges[i] = {from: smallnet_nodea[i], id: i, label: smallnet_edges[i].toString()};
+      }
+
+      for (let i = 0; i < smallnet_nodeb.length; i++)  {
+        edges[i].to = smallnet_nodeb[i];
+      }
+
+      // create a network
+      var container = document.getElementById('mynetwork');
+      var data = {
+        nodes: nodes,
+        edges: edges
+      };
+      var options = {
+        physics: { stabilization: false }
+      };
+      network = new vis.Network(container, data, options);
+    }
+
+    function disableSmoothCurves() {
+      setSmooth = true;
+      network.setOptions({edges:{smooth:{type:'continuous'}}});
+      document.getElementById("message").innerHTML = '<a onclick="enableSmoothCurves()">Click here to reenable the dynamic smooth curves.</a>';
+    }
+
+    function enableSmoothCurves() {
+      setSmooth = false;
+      document.getElementById("message").innerHTML = '<a onclick="disableSmoothCurves()">You may want to disable dynamic smooth curves for better performance with a large amount of nodes and edges. Click here to disable them.</a>';
+      network.setOptions({edges:{smooth:{type:'dynamic'}}});
+    }
+</script>
+</head>
+
+<body onload="draw({{ smallnet_nodes }}, {{ smallnet_edges }}, {{ smallnet_nodea }}, {{ smallnet_nodeb }})">
+
+<p>
+  <form onsubmit="draw(); return false;">
+</form>
+</p>
+<span id="message"></span>
+<div id="mynetwork"></div>
+
+
+</body>
